@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>method</key>
+    <string>app-store</string>
+
+    <key>teamID</key>
+    <string>YOUR_TEAM_ID</string>
+
+    <key>uploadBitcode</key>
+    <false/>
+
+    <key>uploadSymbols</key>
+    <true/>
+
+    <key>compileBitcode</key>
+    <false/>
+
+    <key>stripSwiftSymbols</key>
+    <true/>
+
+    <key>thinning</key>
+    <string>&lt;none&gt;</string>
+
+    <key>signingStyle</key>
+    <string>manual</string>
+
+    <key>signingCertificate</key>
+    <string>iPhone Distribution</string>
+
+    <key>provisioningProfiles</key>
+    <dict>
+        <key>com.tiptap.app</key>
+        <string>TipTap App Store Profile</string>
+    </dict>
+
+    <key>manifest</key>
+    <dict>
+        <key>appURL</key>
+        <string>https://app.tiptap.com/download</string>
+
+        <key>displayImageURL</key>
+        <string>https://app.tiptap.com/assets/icon-57.png</string>
+
+        <key>fullSizeImageURL</key>
+        <string>https://app.tiptap.com/assets/icon-512.png</string>
+    </dict>
+</dict>
+</plist>

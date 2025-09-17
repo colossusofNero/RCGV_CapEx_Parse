@@ -1,0 +1,292 @@
+# Docker Compose configuration for TipTap monitoring stack
+# Includes Prometheus, Grafana, AlertManager, and supporting services
+
+version: '3.8'
+
+networks:
+  monitoring:
+    driver: bridge
+  app:
+    external: true
+
+volumes:
+  prometheus_data:
+  grafana_data:
+  alertmanager_data:
+
+services:
+  # Prometheus - Metrics collection and storage
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    container_name: tiptap-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus/rules:/etc/prometheus/rules
+      - prometheus_data:/prometheus
+    networks:
+      - monitoring
+      - app
+    depends_on:
+      - alertmanager
+
+  # Grafana - Dashboard and visualization
+  grafana:
+    image: grafana/grafana:10.1.0
+    container_name: tiptap-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel,grafana-worldmap-panel,grafana-clock-panel
+      - GF_SERVER_ROOT_URL=https://monitoring.tiptap.com
+      - GF_SMTP_ENABLED=true
+      - GF_SMTP_HOST=${SMTP_HOST}
+      - GF_SMTP_FROM_ADDRESS=grafana@tiptap.com
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    networks:
+      - monitoring
+    depends_on:
+      - prometheus
+
+  # AlertManager - Alert routing and management
+  alertmanager:
+    image: prom/alertmanager:v0.26.0
+    container_name: tiptap-alertmanager
+    restart: unless-stopped
+    ports:
+      - "9093:9093"
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=https://alerts.tiptap.com'
+      - '--web.route-prefix=/'
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - alertmanager_data:/alertmanager
+    networks:
+      - monitoring
+
+  # Node Exporter - System metrics
+  node-exporter:
+    image: prom/node-exporter:v1.6.1
+    container_name: tiptap-node-exporter
+    restart: unless-stopped
+    ports:
+      - "9100:9100"
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    networks:
+      - monitoring
+
+  # cAdvisor - Container metrics
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.0
+    container_name: tiptap-cadvisor
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    privileged: true
+    devices:
+      - /dev/kmsg
+    networks:
+      - monitoring
+
+  # Redis Exporter - Redis metrics (if using Redis)
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.52.0
+    container_name: tiptap-redis-exporter
+    restart: unless-stopped
+    ports:
+      - "9121:9121"
+    environment:
+      - REDIS_ADDR=redis://redis:6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    networks:
+      - monitoring
+      - app
+    depends_on:
+      - redis
+
+  # PostgreSQL Exporter - Database metrics
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.13.2
+    container_name: tiptap-postgres-exporter
+    restart: unless-stopped
+    ports:
+      - "9187:9187"
+    environment:
+      - DATA_SOURCE_NAME=postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}?sslmode=disable
+    networks:
+      - monitoring
+      - app
+    depends_on:
+      - postgres
+
+  # Blackbox Exporter - External endpoint monitoring
+  blackbox-exporter:
+    image: prom/blackbox-exporter:v0.24.0
+    container_name: tiptap-blackbox-exporter
+    restart: unless-stopped
+    ports:
+      - "9115:9115"
+    volumes:
+      - ./blackbox/blackbox.yml:/etc/blackbox_exporter/config.yml
+    networks:
+      - monitoring
+
+  # PushGateway - For pushing metrics from mobile apps
+  pushgateway:
+    image: prom/pushgateway:v1.6.2
+    container_name: tiptap-pushgateway
+    restart: unless-stopped
+    ports:
+      - "9091:9091"
+    command:
+      - '--web.listen-address=:9091'
+      - '--web.telemetry-path=/metrics'
+      - '--persistence.file=/tmp/pushgateway.db'
+      - '--persistence.interval=5m'
+      - '--log.level=info'
+    networks:
+      - monitoring
+      - app
+
+  # Jaeger - Distributed tracing (optional)
+  jaeger:
+    image: jaegertracing/all-in-one:1.48
+    container_name: tiptap-jaeger
+    restart: unless-stopped
+    ports:
+      - "16686:16686"
+      - "14268:14268"
+      - "14250:14250"
+    environment:
+      - COLLECTOR_ZIPKIN_HOST_PORT=:9411
+      - COLLECTOR_OTLP_ENABLED=true
+    networks:
+      - monitoring
+
+  # Loki - Log aggregation (optional)
+  loki:
+    image: grafana/loki:2.9.0
+    container_name: tiptap-loki
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./loki/loki.yml:/etc/loki/local-config.yaml
+    networks:
+      - monitoring
+
+  # Promtail - Log collection agent (optional)
+  promtail:
+    image: grafana/promtail:2.9.0
+    container_name: tiptap-promtail
+    restart: unless-stopped
+    volumes:
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - ./promtail/promtail.yml:/etc/promtail/config.yml
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - monitoring
+    depends_on:
+      - loki
+
+  # Nginx - Reverse proxy for monitoring services
+  nginx-monitoring:
+    image: nginx:1.25-alpine
+    container_name: tiptap-nginx-monitoring
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+    networks:
+      - monitoring
+    depends_on:
+      - grafana
+      - prometheus
+      - alertmanager
+
+  # Custom metrics collector for mobile app metrics
+  metrics-collector:
+    build:
+      context: ./metrics-collector
+      dockerfile: Dockerfile
+    container_name: tiptap-metrics-collector
+    restart: unless-stopped
+    ports:
+      - "8088:8088"
+    environment:
+      - PORT=8088
+      - PUSHGATEWAY_URL=http://pushgateway:9091
+      - LOG_LEVEL=info
+    networks:
+      - monitoring
+      - app
+    depends_on:
+      - pushgateway
+
+  # Supporting services (would be part of your main app stack)
+  redis:
+    image: redis:7-alpine
+    container_name: tiptap-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    networks:
+      - app
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: tiptap-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app
+
+volumes:
+  postgres_data:

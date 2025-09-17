@@ -1,0 +1,431 @@
+name: Security Scanning
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master ]
+  schedule:
+    - cron: '0 2 * * 1' # Weekly on Monday at 2 AM UTC
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  codeql-analysis:
+    name: CodeQL SAST Scanning
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ 'javascript', 'typescript' ]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          config-file: ./.github/codeql-config.yml
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{matrix.language}}"
+
+  dependency-scan:
+    name: Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit
+        run: |
+          npm audit --audit-level=moderate --output=json > npm-audit-results.json || true
+          npm audit --audit-level=moderate
+
+      - name: Upload npm audit results
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit-results
+          path: npm-audit-results.json
+
+      - name: Run Snyk security scan
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high --file=package.json
+
+      - name: Upload Snyk results to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: snyk.sarif
+
+  container-scan:
+    name: Container Security Scan
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: |
+          cat << 'EOF' > Dockerfile.security
+          FROM node:18-alpine
+          WORKDIR /app
+          COPY package*.json ./
+          RUN npm ci --only=production
+          COPY . .
+          EXPOSE 3000
+          USER node
+          CMD ["npm", "start"]
+          EOF
+          docker build -f Dockerfile.security -t tiptap-security-scan:latest .
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'tiptap-security-scan:latest'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  api-security-test:
+    name: API Security Testing
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start test server
+        run: |
+          npm run start:test &
+          sleep 30
+        timeout-minutes: 2
+
+      - name: Run OWASP ZAP baseline scan
+        uses: zaproxy/action-baseline@v0.7.0
+        with:
+          target: 'http://localhost:8081'
+          rules_file_name: '.zap/rules.tsv'
+          cmd_options: '-a'
+
+      - name: Upload ZAP scan results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: zap-report
+          path: report_html.html
+
+  mobile-security-scan:
+    name: Mobile Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Semgrep mobile security rules
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: >
+            p/react-native
+            p/javascript
+            p/typescript
+            p/security-audit
+            p/owasp-top-ten
+          generateSarif: "1"
+
+      - name: Upload Semgrep results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: semgrep.sarif
+
+      - name: Analyze React Native permissions
+        run: |
+          echo "Checking Android permissions..."
+          if [ -f "android/app/src/main/AndroidManifest.xml" ]; then
+            grep -n "uses-permission" android/app/src/main/AndroidManifest.xml || echo "No Android permissions found"
+          fi
+
+          echo "Checking iOS permissions..."
+          if [ -f "ios/TipTap/Info.plist" ]; then
+            grep -n "UsageDescription" ios/TipTap/Info.plist || echo "No iOS permissions found"
+          fi
+
+  pci-compliance-check:
+    name: PCI Compliance Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check for PCI DSS compliance patterns
+        run: |
+          echo "Checking for PCI DSS compliance patterns..."
+
+          # Check for hardcoded secrets
+          echo "Scanning for potential secrets..."
+          if command -v truffleHog >/dev/null 2>&1; then
+            truffleHog --regex --entropy=False .
+          else
+            echo "TruffleHog not available, using grep for basic secret detection"
+            grep -r -i "password\|secret\|key\|token" src/ || echo "No hardcoded secrets detected"
+          fi
+
+          # Check encryption usage
+          echo "Checking encryption implementation..."
+          grep -r -n "crypto" src/ || echo "No crypto usage found"
+          grep -r -n "encrypt" src/ || echo "No encryption patterns found"
+
+          # Check for sensitive data logging
+          echo "Checking for sensitive data in logs..."
+          grep -r -n "console.log.*card\|console.log.*password\|console.log.*ssn" src/ && exit 1 || echo "No sensitive logging detected"
+
+          # Verify HTTPS enforcement
+          echo "Checking HTTPS enforcement..."
+          grep -r -n "http://" src/ && echo "Warning: HTTP URLs found" || echo "HTTPS enforcement check passed"
+
+      - name: Run custom PCI compliance script
+        run: |
+          cat << 'EOF' > pci-compliance-check.js
+          const fs = require('fs');
+          const path = require('path');
+
+          const checkPCICompliance = () => {
+            console.log('Running PCI DSS compliance checks...');
+
+            // Check package.json for security-related dependencies
+            const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            const securityDeps = [
+              'react-native-keychain',
+              'react-native-encrypted-storage',
+              'react-native-biometrics',
+              'react-native-ssl-pinning'
+            ];
+
+            const foundSecurityDeps = securityDeps.filter(dep =>
+              packageJson.dependencies[dep] || packageJson.devDependencies[dep]
+            );
+
+            console.log('Security dependencies found:', foundSecurityDeps);
+
+            if (foundSecurityDeps.length < 2) {
+              console.error('WARNING: Insufficient security dependencies for PCI compliance');
+              process.exit(1);
+            }
+
+            console.log('PCI compliance basic checks passed');
+          };
+
+          checkPCICompliance();
+          EOF
+
+          node pci-compliance-check.js
+
+  secret-scan:
+    name: Secret Detection
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run GitLeaks secret detection
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+
+      - name: Run TruffleHog secret detection
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: main
+          head: HEAD
+          extra_args: --debug --only-verified
+
+  license-compliance:
+    name: License Compliance Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check license compliance
+        run: |
+          npx license-checker --onlyAllow 'MIT;Apache-2.0;BSD;BSD-2-Clause;BSD-3-Clause;ISC;CC0-1.0;Unlicense' --excludePrivatePackages
+
+      - name: Generate license report
+        run: |
+          npx license-checker --csv > license-report.csv
+
+      - name: Upload license report
+        uses: actions/upload-artifact@v4
+        with:
+          name: license-report
+          path: license-report.csv
+
+  security-report:
+    name: Generate Security Report
+    runs-on: ubuntu-latest
+    needs: [codeql-analysis, dependency-scan, mobile-security-scan, secret-scan, license-compliance]
+    if: always()
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Generate security summary
+        run: |
+          echo "# Security Scan Summary" > security-summary.md
+          echo "" >> security-summary.md
+          echo "## Scan Results" >> security-summary.md
+          echo "- **Date**: $(date)" >> security-summary.md
+          echo "- **Commit**: ${{ github.sha }}" >> security-summary.md
+          echo "- **Branch**: ${{ github.ref_name }}" >> security-summary.md
+          echo "" >> security-summary.md
+
+          # Add job statuses
+          echo "### Job Results" >> security-summary.md
+          echo "- CodeQL Analysis: ${{ needs.codeql-analysis.result }}" >> security-summary.md
+          echo "- Dependency Scan: ${{ needs.dependency-scan.result }}" >> security-summary.md
+          echo "- Mobile Security Scan: ${{ needs.mobile-security-scan.result }}" >> security-summary.md
+          echo "- Secret Scan: ${{ needs.secret-scan.result }}" >> security-summary.md
+          echo "- License Compliance: ${{ needs.license-compliance.result }}" >> security-summary.md
+          echo "" >> security-summary.md
+
+          echo "### Artifacts Generated" >> security-summary.md
+          ls -la || true
+          for dir in */; do
+            if [ -d "$dir" ]; then
+              echo "- $dir:" >> security-summary.md
+              ls -la "$dir" | sed 's/^/  /' >> security-summary.md
+            fi
+          done
+
+      - name: Upload security summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-summary
+          path: security-summary.md
+
+      - name: Comment on PR with security summary
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const summary = fs.readFileSync('security-summary.md', 'utf8');
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## 🔒 Security Scan Results\n\n${summary}`
+            });
+
+      - name: Send security alert if high-severity issues found
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: '🚨 TipTap Security Alert - High Severity Issues Found'
+          to: ${{ secrets.SECURITY_EMAIL }}
+          from: 'TipTap Security <security@tiptap.com>'
+          body: |
+            High-severity security issues detected in TipTap repository.
+
+            Branch: ${{ github.ref }}
+            Commit: ${{ github.sha }}
+            Scan Date: $(date)
+
+            Please review the security scan results immediately:
+            ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            This is an automated alert from the TipTap security pipeline.

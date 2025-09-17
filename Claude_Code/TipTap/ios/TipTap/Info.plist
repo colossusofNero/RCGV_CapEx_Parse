@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleDisplayName</key>
+	<string>TipTap</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>localhost</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+			</dict>
+		</dict>
+	</dict>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>TipTap uses your location to find nearby merchants and enhance payment security by preventing fraudulent transactions from unusual locations.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>TipTap needs camera access to scan QR codes for quick and secure payments. Your camera is only used for scanning payment codes and is never used for recording.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>TipTap can save payment receipts and QR codes to your photo library for your records. We only save images you explicitly choose to save.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>TipTap can access your contacts to help you quickly send tips to friends and family. Your contact information is never shared or stored on our servers.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>TipTap uses Face ID to securely authenticate payments and protect your financial information. Face ID data never leaves your device.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>TipTap may use the microphone for voice commands during payment flows to improve accessibility. Audio is processed locally and never recorded.</string>
+	<key>NFCReaderUsageDescription</key>
+	<string>TipTap uses NFC to securely read payment information from NFC-enabled cards and devices for quick contactless payments.</string>
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+	<key>UIRequiredDeviceCapabilities</key>
+	<array>
+		<string>armv7</string>
+		<string>nfc</string>
+	</array>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UIViewControllerBasedStatusBarAppearance</key>
+	<false/>
+	<key>UIStatusBarStyle</key>
+	<string>UIStatusBarStyleDefault</string>
+
+	<!-- Plaid Link Configuration -->
+	<key>PLKAllowedHosts</key>
+	<array>
+		<string>production.plaid.com</string>
+		<string>sandbox.plaid.com</string>
+		<string>development.plaid.com</string>
+	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.tiptap.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>tiptap</string>
+				<string>com.tiptap.app</string>
+				<string>plaidlink-$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+			</array>
+		</dict>
+	</array>
+
+	<!-- Apple Pay Configuration -->
+	<key>com.apple.developer.in-app-payments</key>
+	<array>
+		<string>merchant.com.tiptap.app</string>
+	</array>
+
+	<!-- Background Modes for Payment Processing -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>background-processing</string>
+		<string>background-fetch</string>
+		<string>remote-notification</string>
+		<string>background-app-refresh</string>
+	</array>
+
+	<!-- Push Notifications -->
+	<key>UIUserNotificationSettings</key>
+	<dict>
+		<key>UIUserNotificationTypesAllowed</key>
+		<integer>7</integer>
+	</dict>
+
+	<!-- Associated Domains for Universal Links -->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:tiptap.com</string>
+		<string>applinks:*.tiptap.com</string>
+		<string>applinks:app.tiptap.com</string>
+	</array>
+
+	<!-- App Transport Security Exceptions -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<false/>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>localhost</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+				<key>NSExceptionMinimumTLSVersion</key>
+				<string>TLSv1.0</string>
+			</dict>
+			<key>127.0.0.1</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+			</dict>
+		</dict>
+	</dict>
+
+	<!-- Supported Document Types for Payment Files -->
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>TipTap Payment File</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.tiptap.payment</string>
+			</array>
+		</dict>
+	</array>
+
+	<!-- Export UTI for TipTap Payment Files -->
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>TipTap Payment File</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.tiptap.payment</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>tiptap</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
+
+	<!-- Keychain Sharing -->
+	<key>keychain-access-groups</key>
+	<array>
+		<string>$(AppIdentifierPrefix)com.tiptap.app</string>
+		<string>$(AppIdentifierPrefix)group.com.tiptap.app</string>
+	</array>
+
+	<!-- NFC Tag Reading Formats -->
+	<key>com.apple.developer.nfc.readersession.formats</key>
+	<array>
+		<string>NDEF</string>
+		<string>TAG</string>
+	</array>
+
+	<!-- Privacy Manifest -->
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>C617.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>
