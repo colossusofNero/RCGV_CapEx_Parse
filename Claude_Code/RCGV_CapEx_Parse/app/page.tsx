@@ -8,11 +8,13 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [processingStatus, setProcessingStatus] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');
+    setProcessingStatus('');
 
     if (!npId.trim()) {
       setError('Please enter an NP_ID');
@@ -24,7 +26,23 @@ export default function Home() {
       return;
     }
 
+    // Validate file types
+    const invalidFiles = Array.from(files).filter(file => file.type !== 'application/pdf');
+    if (invalidFiles.length > 0) {
+      setError(`Invalid file type(s): ${invalidFiles.map(f => f.name).join(', ')}. Only PDF files are allowed.`);
+      return;
+    }
+
+    // Validate file sizes (max 10MB per file)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    const oversizedFiles = Array.from(files).filter(file => file.size > maxSize);
+    if (oversizedFiles.length > 0) {
+      setError(`File(s) too large: ${oversizedFiles.map(f => f.name).join(', ')}. Maximum size is 10MB per file.`);
+      return;
+    }
+
     setLoading(true);
+    setProcessingStatus(`Preparing to process ${files.length} file${files.length > 1 ? 's' : ''}...`);
 
     try {
       const formData = new FormData();
@@ -33,6 +51,8 @@ export default function Home() {
       for (let i = 0; i < files.length; i++) {
         formData.append('pdfs', files[i]);
       }
+
+      setProcessingStatus(`Uploading and processing PDFs...`);
 
       const response = await fetch('/api/parse-pdf', {
         method: 'POST',
@@ -44,6 +64,8 @@ export default function Home() {
         throw new Error(errorData.error || 'Failed to process PDFs');
       }
 
+      setProcessingStatus('Generating CSV file...');
+
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -54,12 +76,14 @@ export default function Home() {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
-      setSuccess('CSV file downloaded successfully!');
+      setSuccess(`Successfully processed ${files.length} file${files.length > 1 ? 's' : ''} and downloaded CSV!`);
+      setProcessingStatus('');
       setNpId('');
       setFiles(null);
       (document.getElementById('file-input') as HTMLInputElement).value = '';
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
+      setProcessingStatus('');
     } finally {
       setLoading(false);
     }
@@ -116,6 +140,15 @@ export default function Home() {
               )}
             </div>
 
+            {processingStatus && (
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-md">
+                <div className="flex items-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-700 mr-3"></div>
+                  <p className="text-sm text-blue-700">{processingStatus}</p>
+                </div>
+              </div>
+            )}
+
             {error && (
               <div className="p-4 bg-red-50 border border-red-200 rounded-md">
                 <p className="text-sm text-red-700">{error}</p>
@@ -141,10 +174,30 @@ export default function Home() {
             <h2 className="text-sm font-semibold text-gray-700 mb-2">
               Output Format
             </h2>
-            <p className="text-xs text-gray-600">
-              CSV will contain: <strong>NP_ID</strong>, <strong>Name</strong>,{' '}
-              <strong>Paid_Amount</strong>
+            <p className="text-xs text-gray-600 mb-2">
+              CSV will contain the following fields:
             </p>
+            <ul className="text-xs text-gray-600 space-y-1 list-disc list-inside">
+              <li><strong>NP_ID</strong> - Your provided identifier</li>
+              <li><strong>Name</strong> - Expense description or file name</li>
+              <li><strong>Paid_Amount</strong> - Total payment amount</li>
+              <li><strong>Invoice_Number</strong> - Invoice or order number (if found)</li>
+              <li><strong>Invoice_Date</strong> - Invoice date (if found)</li>
+              <li><strong>Vendor</strong> - Vendor or company name (if found)</li>
+            </ul>
+          </div>
+
+          <div className="mt-4 p-4 bg-indigo-50 border border-indigo-200 rounded-md">
+            <h2 className="text-sm font-semibold text-indigo-700 mb-2">
+              Features
+            </h2>
+            <ul className="text-xs text-indigo-600 space-y-1 list-disc list-inside">
+              <li>Automatic text extraction from PDF documents</li>
+              <li>OCR support for scanned PDFs with auto-rotation</li>
+              <li>Intelligent deduplication of multi-page invoices</li>
+              <li>Extracts descriptions, invoice numbers, dates, and vendor info</li>
+              <li>Batch processing of multiple PDF files</li>
+            </ul>
           </div>
         </div>
       </div>

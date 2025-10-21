@@ -12,6 +12,7 @@
     "test:coverage": "jest --coverage"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.67.0",
     "@napi-rs/canvas": "^0.1.58",
     "next": "^14.2.33",
     "pdf-parse": "^1.1.1",

@@ -1,14 +1,24 @@
 # RCGV CapEx PDF Parser
 
-A Next.js application deployed on Vercel that extracts payment information from PDF files and exports the data as CSV.
+A Next.js application that uses Claude AI to intelligently extract payment information from PDF files and exports the data as CSV.
 
 ## Features
 
-- Upload multiple PDF files
-- Input NP_ID via text field
-- Automatically extracts Name and Paid_Amount from PDFs
-- Exports CSV with columns: NP_ID, Name, Paid_Amount
-- Beautiful, responsive UI with Tailwind CSS
+- **AI-Powered Extraction**: Uses Claude 3.5 Sonnet for accurate data extraction
+- **Upload multiple PDF files** (batch processing)
+- **Smart field extraction**:
+  - Vendor/Company Name
+  - Invoice Number
+  - Invoice Date
+  - Description of goods/services
+  - Total Amount Paid
+- **Handles both text and scanned PDFs**
+- **Vision support**: Analyzes PDF images when text layer is insufficient
+- **Client-side validation** (file type, file size)
+- **Real-time progress tracking**
+- **Exports CSV** with 7 columns including NP_ID
+- **Beautiful, responsive UI** with Tailwind CSS
+- **Comprehensive error handling** and user feedback
 
 ## Getting Started
 
@@ -16,6 +26,7 @@ A Next.js application deployed on Vercel that extracts payment information from 
 
 - Node.js 18+ installed
 - npm or yarn package manager
+- **Anthropic API Key** (required) - Get one at https://console.anthropic.com/
 
 ### Installation
 
@@ -24,12 +35,17 @@ A Next.js application deployed on Vercel that extracts payment information from 
 npm install
 ```
 
-2. Run the development server:
+2. Create a `.env.local` file in the root directory:
+```bash
+ANTHROPIC_API_KEY=your_api_key_here
+```
+
+3. Run the development server:
 ```bash
 npm run dev
 ```
 
-3. Open [http://localhost:3000](http://localhost:3000) in your browser
+4. Open [http://localhost:3000](http://localhost:3000) in your browser
 
 ## Deployment to Vercel
 
@@ -51,7 +67,8 @@ vercel
 2. Go to [vercel.com](https://vercel.com)
 3. Click "Import Project"
 4. Select your repository
-5. Click "Deploy"
+5. **Add environment variable**: `ANTHROPIC_API_KEY` in Vercel project settings
+6. Click "Deploy"
 
 ## Usage
 
@@ -62,16 +79,58 @@ vercel
 
 ## CSV Output Format
 
-The exported CSV contains three columns:
+The exported CSV contains seven columns:
 - **NP_ID**: The ID you provided in the text field
-- **Name**: Extracted vendor/payee name from the PDF
-- **Paid_Amount**: Extracted payment amount from the PDF
+- **Name**: Extracted description of goods/services
+- **Paid_Amount**: Extracted total payment amount
+- **Invoice_Number**: Invoice or order number
+- **Invoice_Date**: Date of invoice
+- **Vendor**: Vendor or company name
+- **Description**: Detailed description
 
-## PDF Parsing Logic
+## How It Works
 
-The application uses intelligent text extraction to find:
-- Names: Looks for patterns like "Name:", "Vendor:", "Pay to:", or capitalized text sequences
-- Amounts: Searches for currency patterns like "$1,234.56" or labeled amounts like "Total: 1234.56"
+The application uses **Claude 3.5 Sonnet** (Anthropic's latest AI model) to intelligently extract data from PDFs:
+
+### 1. PDF Processing
+- Extracts text layer from text-based PDFs
+- Converts scanned PDFs to images for vision analysis
+- Processes up to 5 pages per PDF
+
+### 2. AI-Powered Extraction
+- Sends PDF content (text or images) to Claude API
+- Uses structured prompts to extract specific fields
+- Returns data in JSON format for CSV generation
+
+### 3. Smart Field Detection
+Claude is instructed to find:
+- **Vendor**: Company name, payee, vendor field
+- **Invoice Number**: Invoice #, Order #, PO #, Reference #
+- **Invoice Date**: Various date formats (MM/DD/YYYY, Month DD YYYY, etc.)
+- **Description**: Brief description of goods/services purchased
+- **Amount**: Total, Grand Total, Amount Due, Order Total (highest final amount)
+- Prioritizes more specific keywords for higher confidence
+- Filters out subtotals, taxes, and estimated amounts
+
+### Phase 3: Additional Field Extraction
+- **Description**: Searches for "Description:", "Purpose:", "For:", "Item:", etc.
+- **Invoice Number**: Matches "Invoice #", "Inv #", "Order #", "PO #", etc.
+- **Invoice Date**: Recognizes various date formats (MM/DD/YYYY, Month DD, YYYY, etc.)
+- **Vendor**: Looks for "Vendor:", "Payee:", "Company:", "From:", etc.
+- Searches backward and forward from amount location
+
+### Phase 4: Intelligent Deduplication
+- Detects duplicate amounts on consecutive pages
+- Keeps highest confidence match
+- Prevents double-counting of multi-page invoices
+
+### Phase 5: OCR Fallback with Auto-Rotation
+- Activates when text layer is insufficient
+- Converts PDF pages to images
+- Tests multiple rotations (0°, 90°, 180°, 270°)
+- Scores results based on money amounts and keywords
+- Selects best orientation automatically
+- Processes up to 10 pages
 
 If extraction fails, the PDF filename is used as the name, and the amount defaults to 0.00.
 
@@ -80,8 +139,21 @@ If extraction fails, the PDF filename is used as the name, and the amount defaul
 - **Framework**: Next.js 14 (App Router)
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS
-- **PDF Processing**: pdf-parse
+- **PDF Processing**:
+  - pdf-parse (text extraction)
+  - pdfjs-dist (PDF rendering)
+  - tesseract.js (OCR)
+  - @napi-rs/canvas (image rendering)
+- **Testing**: Jest, React Testing Library
+- **Linting**: ESLint
 - **Deployment**: Vercel
+
+## Configuration
+
+The application is configured in `vercel.json` for optimal Vercel deployment:
+- Memory: 1024MB
+- Timeout: 30 seconds
+- Suitable for processing multiple PDFs with OCR
 
 ## License
 
