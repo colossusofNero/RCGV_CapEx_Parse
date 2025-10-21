@@ -1,9 +1,4 @@
 import Anthropic from '@anthropic-ai/sdk';
-import * as pdfjs from 'pdfjs-dist';
-
-// Configure pdfjs worker
-const pdfjsLib = pdfjs as any;
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
 export interface ExtractedPDFData {
   vendor?: string;
@@ -16,56 +11,13 @@ export interface ExtractedPDFData {
 }
 
 /**
- * Convert PDF buffer to images (one per page)
- */
-async function pdfToImages(buffer: Buffer): Promise<string[]> {
-  const uint8Array = new Uint8Array(buffer);
-  const loadingTask = pdfjsLib.getDocument({ data: uint8Array });
-  const pdf = await loadingTask.promise;
-
-  const images: string[] = [];
-  const numPages = Math.min(pdf.numPages, 5); // Limit to first 5 pages
-
-  for (let pageNum = 1; pageNum <= numPages; pageNum++) {
-    const page = await pdf.getPage(pageNum);
-    const viewport = page.getViewport({ scale: 2.0 });
-
-    // Create canvas
-    const canvas = require('@napi-rs/canvas').createCanvas(viewport.width, viewport.height);
-    const context = canvas.getContext('2d');
-
-    await page.render({
-      canvasContext: context,
-      viewport: viewport
-    }).promise;
-
-    // Convert to base64
-    const imageData = canvas.toBuffer('image/png').toString('base64');
-    images.push(imageData);
-  }
-
-  return images;
-}
-
-/**
- * Extract text directly from PDF for text-based PDFs
+ * Extract text from PDF using pdf-parse
  */
 async function extractTextFromPDF(buffer: Buffer): Promise<string> {
-  const uint8Array = new Uint8Array(buffer);
-  const loadingTask = pdfjsLib.getDocument({ data: uint8Array });
-  const pdf = await loadingTask.promise;
-
-  let fullText = '';
-  const numPages = Math.min(pdf.numPages, 5);
-
-  for (let pageNum = 1; pageNum <= numPages; pageNum++) {
-    const page = await pdf.getPage(pageNum);
-    const textContent = await page.getTextContent();
-    const pageText = textContent.items.map((item: any) => item.str).join(' ');
-    fullText += `\n--- Page ${pageNum} ---\n${pageText}`;
-  }
-
-  return fullText;
+  const pdfParse = await import('pdf-parse');
+  const pdf = pdfParse.default || pdfParse;
+  const data = await pdf(buffer);
+  return data.text;
 }
 
 /**
@@ -88,18 +40,16 @@ export async function parsePDFWithLLM(
   console.log(`\n===== Starting LLM-based extraction for ${fileName} =====`);
 
   try {
-    // First, try to extract text
+    // Extract text from PDF
     const text = await extractTextFromPDF(buffer);
-    const hasText = text.replace(/\s+/g, '').length > 100;
+    console.log(`Extracted ${text.length} characters from PDF`);
 
-    let content: Anthropic.MessageParam[];
+    if (text.length < 50) {
+      throw new Error('PDF appears to be empty or scanned (OCR not yet implemented)');
+    }
 
-    if (hasText) {
-      // Text-based PDF
-      console.log('Using text extraction method');
-      content = [{
-        role: 'user',
-        content: `Please analyze this invoice/payment document and extract the following information in JSON format:
+    // Prepare prompt for Claude
+    const prompt = `Please analyze this invoice/payment document and extract the following information in JSON format:
 
 {
   "vendor": "Company/vendor name",
@@ -115,56 +65,19 @@ Rules:
 - For paidAmount, look for: "Order Total", "Grand Total", "Amount Due", "Total", "Amount Paid"
 - Use the highest/final total amount, not subtotals
 - Remove currency symbols and commas from paidAmount
+- For description, provide a brief summary of what was purchased
 
 Document text:
-${text}`
-      }];
-    } else {
-      // Image-based/scanned PDF
-      console.log('Using vision extraction method');
-      const images = await pdfToImages(buffer);
-
-      const imageBlocks = images.map(img => ({
-        type: 'image' as const,
-        source: {
-          type: 'base64' as const,
-          media_type: 'image/png' as const,
-          data: img
-        }
-      }));
-
-      content = [{
-        role: 'user',
-        content: [
-          {
-            type: 'text',
-            text: `Please analyze this invoice/payment document and extract the following information in JSON format:
-
-{
-  "vendor": "Company/vendor name",
-  "invoiceNumber": "Invoice or order number",
-  "invoiceDate": "Date of invoice (format: MM/DD/YYYY)",
-  "description": "Brief description of goods/services",
-  "paidAmount": "Total amount paid (numeric value only, e.g., 1234.56)"
-}
-
-Rules:
-- Return ONLY valid JSON, no additional text
-- If a field cannot be found, use null
-- For paidAmount, look for: "Order Total", "Grand Total", "Amount Due", "Total", "Amount Paid"
-- Use the highest/final total amount, not subtotals
-- Remove currency symbols and commas from paidAmount`
-          },
-          ...imageBlocks
-        ]
-      }];
-    }
+${text.slice(0, 15000)}`; // Limit to first 15k chars to avoid token limits
 
     // Call Claude API
     const message = await anthropic.messages.create({
       model: 'claude-3-5-sonnet-20241022',
       max_tokens: 1024,
-      messages: content
+      messages: [{
+        role: 'user',
+        content: prompt
+      }]
     });
 
     const responseText = message.content[0].type === 'text'
