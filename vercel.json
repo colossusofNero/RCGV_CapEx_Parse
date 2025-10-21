@@ -1,0 +1,5 @@
+{
+  "buildCommand": "cd Claude_Code/RCGV_CapEx_Parse && npm run build",
+  "outputDirectory": "Claude_Code/RCGV_CapEx_Parse/.next",
+  "installCommand": "cd Claude_Code/RCGV_CapEx_Parse && npm install"
+}
