@@ -107,20 +107,20 @@ async function extractOrdersFromPDF(
  * Extracts description from nearby lines
  */
 function extractDescription(lines: string[], currentIndex: number): string | undefined {
-  // Look for description in previous lines (up to 10 lines back)
+  // Look for description in nearby lines (both before and after)
   const descriptionPatterns = [
-    /^Description[:\s]+(.+)$/i,
-    /^Purpose[:\s]+(.+)$/i,
-    /^For[:\s]+(.+)$/i,
-    /^Item[:\s]+(.+)$/i,
-    /^Expense[:\s]+(.+)$/i,
-    /^Service[:\s]+(.+)$/i,
-    /^Details[:\s]+(.+)$/i,
-    /^Memo[:\s]+(.+)$/i,
+    /Description[:\s]+(.+)/i,
+    /Purpose[:\s]+(.+)/i,
+    /For[:\s]+(.+)/i,
+    /Item[:\s]+(.+)/i,
+    /Expense[:\s]+(.+)/i,
+    /Service[:\s]+(.+)/i,
+    /Details[:\s]+(.+)/i,
+    /Memo[:\s]+(.+)/i,
   ];
 
-  // Search backwards from current line
-  for (let i = Math.max(0, currentIndex - 10); i < currentIndex; i++) {
+  // Search backwards (up to 20 lines back)
+  for (let i = Math.max(0, currentIndex - 20); i < currentIndex; i++) {
     const line = lines[i].trim();
 
     for (const pattern of descriptionPatterns) {
@@ -129,6 +129,23 @@ function extractDescription(lines: string[], currentIndex: number): string | und
         const desc = match[1].trim();
         // Only return if it's reasonably long and not just a keyword
         if (desc.length > 10 && !desc.toLowerCase().includes('invoice') && !desc.toLowerCase().includes('date')) {
+          console.log(`  Found description (backward): "${desc}"`);
+          return desc;
+        }
+      }
+    }
+  }
+
+  // Also search forward (up to 5 lines ahead)
+  for (let i = currentIndex + 1; i < Math.min(lines.length, currentIndex + 6); i++) {
+    const line = lines[i].trim();
+
+    for (const pattern of descriptionPatterns) {
+      const match = line.match(pattern);
+      if (match && match[1]) {
+        const desc = match[1].trim();
+        if (desc.length > 10 && !desc.toLowerCase().includes('invoice') && !desc.toLowerCase().includes('date')) {
+          console.log(`  Found description (forward): "${desc}"`);
           return desc;
         }
       }
