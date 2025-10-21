@@ -18,6 +18,7 @@ interface OrderMatch {
   amount: number;
   line: string;
   confidence: number;
+  description?: string;
 }
 
 interface ExtractionResult {
@@ -101,6 +102,42 @@ async function extractOrdersFromPDF(
     };
   }
 }
+
+/**
+ * Extracts description from nearby lines
+ */
+function extractDescription(lines: string[], currentIndex: number): string | undefined {
+  // Look for description in previous lines (up to 10 lines back)
+  const descriptionPatterns = [
+    /^Description[:\s]+(.+)$/i,
+    /^Purpose[:\s]+(.+)$/i,
+    /^For[:\s]+(.+)$/i,
+    /^Item[:\s]+(.+)$/i,
+    /^Expense[:\s]+(.+)$/i,
+    /^Service[:\s]+(.+)$/i,
+    /^Details[:\s]+(.+)$/i,
+    /^Memo[:\s]+(.+)$/i,
+  ];
+
+  // Search backwards from current line
+  for (let i = Math.max(0, currentIndex - 10); i < currentIndex; i++) {
+    const line = lines[i].trim();
+
+    for (const pattern of descriptionPatterns) {
+      const match = line.match(pattern);
+      if (match && match[1]) {
+        const desc = match[1].trim();
+        // Only return if it's reasonably long and not just a keyword
+        if (desc.length > 10 && !desc.toLowerCase().includes('invoice') && !desc.toLowerCase().includes('date')) {
+          return desc;
+        }
+      }
+    }
+  }
+
+  return undefined;
+}
+
 
 // ============================================================================
 // PHASE 2: Pattern Matching Engine
@@ -235,15 +272,22 @@ function extractOrdersFromText(text: string, fileName: string): ExtractionResult
     if (bestAmount) {
       const amountValue = parseFloat(bestAmount.replace(/,/g, ''));
 
+      // Try to find description in nearby lines
+      const description = extractDescription(lines, i);
+
       orders.push({
         page: currentPage,
         label: bestKeywordMatch,
         amount: amountValue,
         line: line.trim().substring(0, 100),
         confidence: keywordConfidence,
+        description,
       });
 
       console.log(`Line ${i + 1}: Found ${bestKeywordMatch} = $${amountValue.toFixed(2)} (confidence: ${keywordConfidence})`);
+      if (description) {
+        console.log(`  Description: ${description}`);
+      }
     }
   }
 
@@ -752,7 +796,7 @@ export async function POST(request: NextRequest) {
           for (const order of extractionResult.orders) {
             parsedData.push({
               npId,
-              name: `${file.name} - Page ${order.page} (${order.label})`,
+              name: order.description || `${file.name} - Page ${order.page} (${order.label})`,
               paidAmount: order.amount.toFixed(2),
             });
           }
