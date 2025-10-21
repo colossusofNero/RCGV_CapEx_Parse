@@ -4,6 +4,9 @@ import './globals.css'
 export const metadata: Metadata = {
   title: 'RCGV CapEx PDF Parser',
   description: 'Extract payment information from PDF files',
+  icons: {
+    icon: '/icon.svg',
+  },
 }
 
 export default function RootLayout({
