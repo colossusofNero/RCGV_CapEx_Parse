@@ -49,7 +49,7 @@ export default function Home() {
       formData.append('npId', npId);
 
       for (let i = 0; i < files.length; i++) {
-        formData.append('pdfs', files[i]);
+        formData.append('files', files[i]);
       }
 
       setProcessingStatus(`Uploading and processing PDFs...`);
