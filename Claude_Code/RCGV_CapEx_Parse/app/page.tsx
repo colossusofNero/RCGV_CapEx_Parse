@@ -33,11 +33,11 @@ export default function Home() {
       return;
     }
 
-    // Validate file sizes (max 10MB per file)
-    const maxSize = 10 * 1024 * 1024; // 10MB
+    // Validate file sizes (max 50MB per file)
+    const maxSize = 50 * 1024 * 1024; // 50MB
     const oversizedFiles = Array.from(files).filter(file => file.size > maxSize);
     if (oversizedFiles.length > 0) {
-      setError(`File(s) too large: ${oversizedFiles.map(f => f.name).join(', ')}. Maximum size is 10MB per file.`);
+      setError(`File(s) too large: ${oversizedFiles.map(f => f.name).join(', ')}. Maximum size is 50MB per file.`);
       return;
     }
 

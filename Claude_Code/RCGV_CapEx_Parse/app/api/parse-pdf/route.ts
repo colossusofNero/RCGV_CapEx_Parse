@@ -5,6 +5,17 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const maxDuration = 60; // Increase timeout for LLM calls
 
+// Disable body size limit for this route
+export const bodyParser = false;
+
+// Set custom config for larger files
+export const config = {
+  api: {
+    bodyParser: false,
+    responseLimit: false,
+  },
+};
+
 interface ParsedData {
   npId: string;
   name: string;
