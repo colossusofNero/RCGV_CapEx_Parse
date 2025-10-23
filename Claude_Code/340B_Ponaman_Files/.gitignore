@@ -1,0 +1,63 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Environment variables
+.env
+.env.local
+.env.production
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Outputs
+uploads/
+outputs/
+InvoiceOutputs/
+Logs/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDEs
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Vercel
+.vercel
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Temporary files
+temp_output.txt
+nul
+
+# Google credentials (keep secure!)
+service_account.json
+
+# Large sample files
+PDFs/
+*.pdf
+*.docx
+*.xlsx
+
+# Backup files
+*.backup
+*.bak

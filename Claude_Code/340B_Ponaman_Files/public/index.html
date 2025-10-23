@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>340B Invoice Parser</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>340B Invoice Parser</h1>
+            <p class="subtitle">Upload invoice PDFs for automated data extraction</p>
+        </header>
+
+        <main>
+            <div id="uploadSection" class="upload-section">
+                <div class="upload-area" id="uploadArea">
+                    <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                    <p class="upload-text">Drag & drop PDF files here</p>
+                    <p class="upload-subtext">or</p>
+                    <label for="fileInput" class="btn btn-primary">Choose Files</label>
+                    <input type="file" id="fileInput" accept=".pdf" multiple hidden>
+                    <p class="upload-hint">Support for multiple PDF files (up to 10 files, 50MB each)</p>
+                </div>
+
+                <div id="fileList" class="file-list"></div>
+
+                <button id="uploadBtn" class="btn btn-large btn-success" style="display: none;">
+                    Process Invoices
+                </button>
+            </div>
+
+            <div id="processingSection" class="processing-section" style="display: none;">
+                <div class="spinner"></div>
+                <p class="processing-text">Processing invoices...</p>
+                <p class="processing-subtext">This may take a few moments</p>
+            </div>
+
+            <div id="resultsSection" class="results-section" style="display: none;">
+                <div class="results-header">
+                    <h2>Processing Complete</h2>
+                    <button id="newUploadBtn" class="btn btn-secondary">Process More Files</button>
+                </div>
+
+                <div class="results-stats" id="resultsStats"></div>
+
+                <div class="results-actions">
+                    <button id="downloadCsvBtn" class="btn btn-primary">
+                        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        Download CSV
+                    </button>
+                    <button id="viewDataBtn" class="btn btn-secondary">View Data</button>
+                </div>
+
+                <div id="dataTable" class="data-table" style="display: none;"></div>
+            </div>
+
+            <div id="errorSection" class="error-section" style="display: none;">
+                <div class="error-icon">⚠️</div>
+                <h2>Processing Error</h2>
+                <p id="errorMessage" class="error-message"></p>
+                <button id="retryBtn" class="btn btn-primary">Try Again</button>
+            </div>
+        </main>
+
+        <footer>
+            <p>340B Ponaman Project - Invoice Processing System</p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
