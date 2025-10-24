@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "cd 340B_Location_List_Comparator && npm run build",
+  "outputDirectory": "340B_Location_List_Comparator/dist",
+  "installCommand": "cd 340B_Location_List_Comparator && npm install",
+  "functions": {
+    "api/**/*.js": {
+      "maxDuration": 60
+    }
+  }
+}
