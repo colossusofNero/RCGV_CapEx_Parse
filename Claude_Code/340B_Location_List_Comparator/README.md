@@ -2,6 +2,8 @@
 
 A web application for comparing 340B location lists, featuring AI-powered PDF parsing with Claude.
 
+**🚀 Live Deployment:** This app is deployed on Vercel and connected to the `340B_CrossWalk` repository.
+
 ## Setup Instructions
 
 ### Local Development
@@ -32,13 +34,17 @@ A web application for comparing 340B location lists, featuring AI-powered PDF pa
 
 ### Vercel Deployment
 
-1. Connect your GitHub repository to Vercel
+**Important:** Make sure your Vercel project is connected to the `340B_CrossWalk` repository (not RCGV_CapEx_Parse).
+
+1. Connect your GitHub repository to Vercel (`https://github.com/colossusofNero/340B_CrossWalk.git`)
 
 2. In your Vercel project settings, add the following environment variable:
    - **Variable Name**: `CLAUDE_API_KEY`
    - **Value**: Your Claude API key (starts with `sk-ant-api03-...`)
 
 3. Deploy the application - it will automatically build and deploy when you push to the main branch
+
+For detailed deployment instructions, see [DEPLOYMENT.md](DEPLOYMENT.md)
 
 ### Environment Variables
 
