@@ -4,7 +4,20 @@
       "Bash(mkdir:*)",
       "Bash(npm run build:*)",
       "Bash(npm install)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nFix: Convert Supabase Edge Function to Vercel API endpoint\n\nThis fixes the 404 error by migrating from Supabase Edge Functions to Vercel serverless functions for deployment compatibility.\n\nChanges:\n- Created Vercel API endpoint at api/parse-pdf.js for PDF parsing\n- Updated claudeParser.ts to use Vercel API endpoint instead of Supabase\n- Added vercel.json configuration for API routes\n- Updated .env with CLAUDE_API_KEY for server-side use\n- Created .env.example with required environment variables\n- Enhanced README.md with setup and deployment instructions\n\nGenerated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git push:*)",
+      "Read(//c/Users/scott/Claude_Code/**)",
+      "Bash(git remote add:*)",
+      "Bash(git fetch:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nFix: Add root-level configuration for Vercel monorepo deployment\n\nThis fixes the build error by providing proper configuration for Vercel\nto build the 340B Location List Comparator from the monorepo structure.\n\nChanges:\n- Added root-level vercel.json with build commands for subdirectory\n- Copied API endpoint to root-level api/ directory for Vercel functions\n- Configured proper build output directory\n\nGenerated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git commit:*)",
+      "Bash(git ls-tree:*)",
+      "Bash(cat:*)",
+      "Bash(md5sum:*)",
+      "Bash(git rev-parse:*)",
+      "Read(//c/Users/scott/**)",
+      "Bash(rm:*)"
     ],
     "deny": [],
     "ask": []
