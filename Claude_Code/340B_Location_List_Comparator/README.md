@@ -4,6 +4,8 @@ A web application for comparing 340B location lists, featuring AI-powered PDF pa
 
 **🚀 Live Deployment:** This app is deployed on Vercel and connected to the `340B_CrossWalk` repository.
 
+**Status:** Latest build configuration deployed and tested.
+
 ## Setup Instructions
 
 ### Local Development
